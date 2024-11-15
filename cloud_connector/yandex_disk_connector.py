@@ -21,7 +21,7 @@ class YandexDiskConnector:
                         "Authorization": f"OAuth {self.__token}"}
 
 
-    def check_directory_exists(self) -> None:
+    def __check_directory_exists(self) -> None:
         """Проверяет существование облачной директории.
 
         Raises:
@@ -42,7 +42,7 @@ class YandexDiskConnector:
                 handle_errors(http_err)
 
 
-    def get_cloud_files(self) -> dict[str, str]:
+    def get_info(self) -> dict[str, str]:
         """
         Получает информацию о файлах в облачном хранилище.
 
@@ -55,7 +55,7 @@ class YandexDiskConnector:
             requests.HTTPError: Для других HTTP ошибок.
             Exception: Для любых других исключений.
         """
-        self.check_directory_exists()  # Проверка существования директории
+        self.__check_directory_exists()  # Проверка существования директории
 
         try:
             response = requests.get(f"{self.__url}?path={self.__cloud_dir}",
@@ -73,12 +73,12 @@ class YandexDiskConnector:
             handle_errors(exc)
 
 
-    def upload_file(self, file_path: str, overwrite: bool = False) -> None:
+    def load(self, path: str, overwrite: bool = False) -> None:
         """
         Загружает файл на Яндекс Диск.
 
         Args:
-            file_path (str): Путь к локальному файлу для загрузки.
+            path (str): Путь к локальному файлу для загрузки.
             overwrite (bool): Флаг перезаписи файла, по умолчанию False.
         Raises:
             ValueError: Если не удается получить ссылку для загрузки.
@@ -88,15 +88,15 @@ class YandexDiskConnector:
             requests.HTTPError: Для других HTTP ошибок.
             Exception: Для любых других исключений.
         """
-        self.check_directory_exists()  # Проверка существования директории
+        self.__check_directory_exists()  # Проверка существования директории
 
-        if not os.path.isfile(file_path):
-            raise FileNotFoundError(f"Файл не найден: {file_path}")
+        if not os.path.isfile(path):
+            raise FileNotFoundError(f"Файл не найден: {path}")
 
         try:
-            with open(file_path, 'rb') as file_to_load:
+            with open(path, 'rb') as file_to_load:
                 response = requests.get(
-                    f"{self.__url}/upload?path={self.__cloud_dir}/{os.path.basename(file_path)}&overwrite={overwrite}",
+                    f"{self.__url}/upload?path={self.__cloud_dir}/{os.path.basename(path)}&overwrite={overwrite}",
                     headers=self.__headers, timeout=self.__timeout
                 )
                 response.raise_for_status()  #  Проверка на ошибки HTTP
@@ -113,12 +113,12 @@ class YandexDiskConnector:
             handle_errors(exc)
 
 
-    def reupload_file(self, file_path: str) -> None:
+    def reload(self, path: str) -> None:
         """
         Повторно загружает измененный файл на Яндекс Диск.
 
         Args:
-            file_path (str): Путь к локальному файлу для повторной загрузки.
+            path (str): Путь к локальному файлу для повторной загрузки.
         Raises:
             ValueError: Если не удается получить ссылку для загрузки.
             FileNotFoundError: Если указанный файл не найден.
@@ -127,15 +127,15 @@ class YandexDiskConnector:
             requests.HTTPError: Для других HTTP ошибок.
             Exception: Для любых других исключений.
         """
-        self.upload_file(file_path, overwrite=True)  # Использует метод загрузки файла с флагом перезаписи overwrite = True
+        self.load(path, overwrite=True)  # Использует метод загрузки файла с флагом перезаписи overwrite = True
 
 
-    def delete_file(self, file_name: str) -> None:
+    def delete(self, filename: str) -> None:
         """
         Удаляет файл из Яндекс Диска по имени.
 
         Args:
-            file_name (str): Имя файла для удаления.
+            filename (str): Имя файла для удаления.
         Raises:
             ValueError: Если имя файла не указано.
             FileNotFoundError: Если указанный файл не найден.
@@ -144,13 +144,13 @@ class YandexDiskConnector:
             requests.HTTPError: Для других HTTP ошибок.
             Exception: Для любых других исключений.
         """
-        self.check_directory_exists()  # Проверка существования директории
+        self.__check_directory_exists()  # Проверка существования директории
 
-        if not file_name:
+        if not filename:
             raise ValueError("Имя файла не может быть пустым.")
 
         try:
-            response = requests.delete(f"{self.__url}?path={self.__cloud_dir}/{file_name}",
+            response = requests.delete(f"{self.__url}?path={self.__cloud_dir}/{filename}",
                                        headers=self.__headers, timeout=self.__timeout)
             response.raise_for_status()  #  Проверка на ошибки HTTP
 
