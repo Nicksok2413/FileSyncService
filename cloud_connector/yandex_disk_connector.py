@@ -1,14 +1,45 @@
 import os
 import requests
 
+from errors.handle_errors import handle_errors
+
 
 class YandexDiskConnector:
     def __init__(self, token: str, cloud_dir: str) -> None:
+        """
+        Инициализирует объект YandexDiskConnector.
+
+        Args:
+            token (str): Токен доступа к Яндекс Диску.
+            cloud_dir (str): Путь к облачной директории на Яндекс Диске.
+        """
         self.__token = token
         self.__cloud_dir = cloud_dir
+        self.__url = 'https://cloud-api.yandex.net/v1/disk/resources'
+        self.__timeout = (5, 10)  # (connect timeout, read timeout)
         self.__headers = {"Content-Type": "application/json", "Accept": "application/json",
                         "Authorization": f"OAuth {self.__token}"}
-        self.__url = "https://cloud-api.yandex.net/v1/disk/resources"
+
+
+    def check_directory_exists(self) -> None:
+        """Проверяет существование облачной директории.
+
+        Raises:
+            FileNotFoundError: Если облачная директория не найдена.
+            ConnectionError: Если возникли проблемы с соединением.
+            PermissionError: Если доступ запрещен или ошибка авторизации.
+            requests.HTTPError: Для других HTTP ошибок.
+        """
+        try:
+            response = requests.get(f"{self.__url}?path={self.__cloud_dir}", headers=self.__headers,
+                                    timeout=self.__timeout)
+            response.raise_for_status()  # Проверка на ошибки HTTP
+
+        except requests.HTTPError as http_err:
+            if http_err.response.status_code == 404:
+                raise FileNotFoundError(f"404 - облачная директория '{self.__cloud_dir}' не найдена.")
+            else:
+                handle_errors(http_err)
 
 
     def get_cloud_files(self) -> dict[str, str]:
@@ -18,18 +49,31 @@ class YandexDiskConnector:
         Returns:
             dict[str, str]: Словарь с именами файлов и временем их последнего изменения.
         Raises:
-            requests.HTTPError: В случае ошибки при выполнении запроса.
+            ValueError: Если ответ не содержит ожидаемых данных.
+            ConnectionError: Если возникли проблемы с соединением.
+            PermissionError: Если доступ запрещен или ошибка авторизации.
+            requests.HTTPError: Для других HTTP ошибок.
+            Exception: Для любых других исключений.
         """
-        response = requests.get(f"{self.__url}?path={self.__cloud_dir}",
-                                headers=self.__headers)
-        response.raise_for_status()
+        self.check_directory_exists()  # Проверка существования директории
 
-        files_info = response.json().get("_embedded", {}).get("items", [])
+        try:
+            response = requests.get(f"{self.__url}?path={self.__cloud_dir}",
+                                    headers=self.__headers, timeout=self.__timeout)
+            response.raise_for_status()  #  Проверка на ошибки HTTP
 
-        return {file["name"]: file["modified"] for file in files_info}
+            files_info = response.json().get("_embedded", {}).get("items", [])
+
+            if not files_info:
+                raise ValueError("Не удалось получить информацию о файлах.")
+
+            return {file["name"]: file["modified"] for file in files_info}
+
+        except Exception as exc:
+            handle_errors(exc)
 
 
-    def upload_file(self, file_path: str, overwrite=False) -> None:
+    def upload_file(self, file_path: str, overwrite: bool = False) -> None:
         """
         Загружает файл на Яндекс Диск.
 
@@ -37,14 +81,36 @@ class YandexDiskConnector:
             file_path (str): Путь к локальному файлу для загрузки.
             overwrite (bool): Флаг перезаписи файла, по умолчанию False.
         Raises:
-            KeyError: В случае ошибки при выполнении запроса.
+            ValueError: Если не удается получить ссылку для загрузки.
+            FileNotFoundError: Если указанный файл не найден.
+            ConnectionError: Если возникли проблемы с соединением.
+            PermissionError: Если доступ запрещен или ошибка авторизации.
+            requests.HTTPError: Для других HTTP ошибок.
+            Exception: Для любых других исключений.
         """
-        with open(file_path, 'rb') as file_to_load:
-            response = requests.get(f"{self.__url}/upload?path={self.__cloud_dir}/{os.path.basename(file_path)}&overwrite={overwrite}", headers=self.__headers).json()
-            try:
-                requests.put(response["href"], files={"file": file_to_load})
-            except KeyError:
-                print(response)
+        self.check_directory_exists()  # Проверка существования директории
+
+        if not os.path.isfile(file_path):
+            raise FileNotFoundError(f"Файл не найден: {file_path}")
+
+        try:
+            with open(file_path, 'rb') as file_to_load:
+                response = requests.get(
+                    f"{self.__url}/upload?path={self.__cloud_dir}/{os.path.basename(file_path)}&overwrite={overwrite}",
+                    headers=self.__headers, timeout=self.__timeout
+                )
+                response.raise_for_status()  #  Проверка на ошибки HTTP
+
+                upload_url = response.json().get("href")
+
+                if not upload_url:
+                    raise ValueError("Не удалось получить ссылку для загрузки.")
+
+                put_response = requests.put(upload_url, files={"file": file_to_load}, timeout=self.__timeout)
+                put_response.raise_for_status() #  Проверка на ошибки при загрузке
+
+        except Exception as exc:
+            handle_errors(exc)
 
 
     def reupload_file(self, file_path: str) -> None:
@@ -54,9 +120,14 @@ class YandexDiskConnector:
         Args:
             file_path (str): Путь к локальному файлу для повторной загрузки.
         Raises:
-            KeyError: В случае ошибки при выполнении запроса.
+            ValueError: Если не удается получить ссылку для загрузки.
+            FileNotFoundError: Если указанный файл не найден.
+            ConnectionError: Если возникли проблемы с соединением.
+            PermissionError: Если доступ запрещен или ошибка авторизации.
+            requests.HTTPError: Для других HTTP ошибок.
+            Exception: Для любых других исключений.
         """
-        self.upload_file(file_path, overwrite=True)  # Переиспользует метод загрузки файла с флагом перезаписи = True
+        self.upload_file(file_path, overwrite=True)  # Использует метод загрузки файла с флагом перезаписи overwrite = True
 
 
     def delete_file(self, file_name: str) -> None:
@@ -66,7 +137,22 @@ class YandexDiskConnector:
         Args:
             file_name (str): Имя файла для удаления.
         Raises:
-            requests.HTTPError: В случае ошибки при выполнении запроса.
+            ValueError: Если имя файла не указано.
+            FileNotFoundError: Если указанный файл не найден.
+            ConnectionError: Если возникли проблемы с соединением.
+            PermissionError: Если доступ запрещен или ошибка авторизации.
+            requests.HTTPError: Для других HTTP ошибок.
+            Exception: Для любых других исключений.
         """
-        response = requests.delete(f"{self.__url}?path={self.__cloud_dir}/{file_name}", headers=self.__headers)
-        response.raise_for_status()
+        self.check_directory_exists()  # Проверка существования директории
+
+        if not file_name:
+            raise ValueError("Имя файла не может быть пустым.")
+
+        try:
+            response = requests.delete(f"{self.__url}?path={self.__cloud_dir}/{file_name}",
+                                       headers=self.__headers, timeout=self.__timeout)
+            response.raise_for_status()  #  Проверка на ошибки HTTP
+
+        except Exception as exc:
+            handle_errors(exc)

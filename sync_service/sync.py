@@ -10,7 +10,7 @@ def sync_files(connector: YandexDiskConnector, local_dir: str, log: logger) -> N
     Синхронизирует файлы между локальной директорией и облачным хранилищем.
 
     Args:
-        connector (YandexDiskConnector): Объект для работы с Яндекс Диском.
+        connector (YandexDiskConnector): Объект для работы с облачным хранилищем.
         local_dir (str): Путь к локальной директории.
         log (logger): Логгер для записи информации о процессе синхронизации.
     Raises:
@@ -31,10 +31,10 @@ def sync_files(connector: YandexDiskConnector, local_dir: str, log: logger) -> N
                 log.info(f"Загружен новый файл в облако: {local_file}")
 
             else:
-                local_file_modified_time = dt.fromtimestamp(os.path.getmtime(os.path.join(local_dir, local_file))).strftime("%Y-%m-%dT%H:%M:%S")
-                if local_file_modified_time > cloud_files[local_file]:
+                local_file_modified_time = dt.fromtimestamp(os.path.getmtime(os.path.join(local_dir, local_file)))
+                if local_file_modified_time.strftime("%Y-%m-%dT%H:%M:%S") > cloud_files[local_file]:
                     connector.reupload_file(file_path=os.path.join(local_dir, local_file))
                     log.info(f"Перезаписан файл в облаке: {local_file}")
 
     except Exception as exc:
-        log.error(f"Ошибка синхронизации: {str(exc)}")
+        log.error(f"Ошибка синхронизации! {str(exc)}")

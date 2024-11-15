@@ -10,11 +10,19 @@ def setup_parameters() -> tuple[str, str, str, int, str]:
     Returns:
         tuple: Токен доступа, локальная директория, облачная директория,
                интервал синхронизации (в секундах) и имя файла лога.
+    Raises:
+         EnvironmentError: Если обязательные переменные окружения отсутствуют.
     """
     if not find_dotenv():
         exit("Переменные окружения не загружены т.к отсутствует файл .env")
     else:
         load_dotenv()  # Загружаем переменные окружения из .env файла
+
+    required_vars = ["TOKEN", "LOCAL_DIR", "CLOUD_DIR"]
+
+    for var in required_vars:
+        if os.getenv(var) is None:
+            raise EnvironmentError(f"Отсутствует обязательная переменная окружения: {var}")
 
     token = os.getenv("TOKEN")
     local_dir = os.getenv("LOCAL_DIR")
