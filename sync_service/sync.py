@@ -37,6 +37,7 @@ def sync_files(connector: YandexDiskConnector, local_dir: str, log: logger) -> N
     """
     try:
         # Получаем информацию о файлах
+
         cloud_files = connector.get_info()
         local_files = os.listdir(local_dir)
 
@@ -63,4 +64,7 @@ def sync_files(connector: YandexDiskConnector, local_dir: str, log: logger) -> N
                     log.info(f"Перезаписан файл в облаке: {local_file}")
 
     except Exception as exc:
-        log.error(f"Ошибка синхронизации! {str(exc)}")
+        if str(exc).startswith("HTTPSConnectionPool(host='cloud-api.yandex.net', port=443)"):
+            log.error(f"Ошибка подключения: проверьте интернет-соединение!")
+        else:
+            log.error(f"Ошибка синхронизации! {str(exc)}")
