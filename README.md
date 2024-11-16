@@ -30,8 +30,8 @@
 
 1. Клонируйте репозиторий:  
    ```bash
-   git clone https://github.com/Nicksok2413/File_synchronization_service.git
-   cd FileSync
+   git clone https://github.com/Nicksok2413/FileSyncService.git
+   cd FileSyncService
    ```  
 
 2. Установите зависимости:  
