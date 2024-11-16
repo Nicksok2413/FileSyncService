@@ -32,13 +32,10 @@ def main() -> None:
 
     try:
         while True:
-            try:
-                # Синхронизация файлов
-                sync_files(connector=connector, local_dir=local_dir, log=logger)
-                sleep(sync_interval)
+            # Синхронизация файлов
+            sync_files(connector=connector, local_dir=local_dir, log=logger)
+            sleep(sync_interval)
 
-            except Exception as exc:
-                logger.error(f"Ошибка во время синхронизации: {str(exc)}")
     finally:
         logger.info(f"Процесс синхронизации завершён.")
 
