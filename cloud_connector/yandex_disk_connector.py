@@ -49,7 +49,6 @@ class YandexDiskConnector:
         Returns:
             dict[str, str]: Словарь с именами файлов и значениями их хеша.
         Raises:
-            ValueError: Если ответ не содержит ожидаемых данных.
             ConnectionError: Если возникли проблемы с соединением.
             PermissionError: Если доступ запрещен или ошибка авторизации.
             requests.HTTPError: Для других HTTP ошибок.
@@ -64,8 +63,9 @@ class YandexDiskConnector:
 
             files_info = response.json().get("_embedded", {}).get("items", [])
 
+            # Если папка пуста, возвращаем пустой словарь
             if not files_info:
-                raise ValueError("Не удалось получить информацию о файлах.")
+                return {}
 
             return {file["name"]: file["md5"] for file in files_info}
 
