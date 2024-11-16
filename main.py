@@ -2,7 +2,6 @@ import sys
 from time import sleep
 from signal import signal, SIGINT
 
-
 from config_data.config import setup_parameters
 from logs.logger import setup_logger
 from cloud_connector.yandex_disk_connector import YandexDiskConnector
@@ -42,7 +41,6 @@ def main() -> None:
                 logger.error(f"Ошибка во время синхронизации: {str(exc)}")
     finally:
         logger.info(f"Процесс синхронизации завершён.")
-
 
 
 if __name__ == "__main__":
