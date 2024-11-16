@@ -47,7 +47,7 @@ class YandexDiskConnector:
         Получает информацию о файлах в облачном хранилище.
 
         Returns:
-            dict[str, str]: Словарь с именами файлов и временем их последнего изменения.
+            dict[str, str]: Словарь с именами файлов и значениями их хеша.
         Raises:
             ValueError: Если ответ не содержит ожидаемых данных.
             ConnectionError: Если возникли проблемы с соединением.
@@ -67,7 +67,7 @@ class YandexDiskConnector:
             if not files_info:
                 raise ValueError("Не удалось получить информацию о файлах.")
 
-            return {file["name"]: file["modified"] for file in files_info}
+            return {file["name"]: file["md5"] for file in files_info}
 
         except Exception as exc:
             handle_errors(exc)
